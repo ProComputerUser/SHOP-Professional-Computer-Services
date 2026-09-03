@@ -1,0 +1,8 @@
+{
+  "name": "Remix SHOP Professional Computer Services",
+  "description": "An interactive, fully featured modern tech e-commerce shop template supporting dynamic filtering, product comparisons, shopping cart, and a responsive bento-style catalog featuring specific device and service categories.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

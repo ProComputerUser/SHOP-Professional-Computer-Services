@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700;850&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Custom scrollbar class for horizontal menus */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Styling for the new Portal Sign-In trigger */
+.portal-signin-btn {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: #ffffff; /* Matches your header text color */
+  background-color: rgba(255, 255, 255, 0.08); /* Subtle background hover state */
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  margin-right: 12px; /* Gap between Sign In and Cart */
+}
+
+.portal-signin-btn:hover {
+  background-color: rgba(255, 255, 255, 0.18);
+  transform: translateY(-1px);
+}
+
+.portal-signin-btn:active {
+  transform: translateY(0);
+}
+

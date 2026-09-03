@@ -1,0 +1,60 @@
+{
+  "collections": {
+    "users": {
+      "description": "User profiles for both customers and corporate staff.",
+      "schema": {
+        "uid": "string",
+        "email": "string",
+        "fullName": "string",
+        "role": "string ('customer' | 'employee')",
+        "createdAt": "timestamp (ISO-8601)",
+        "employeeId": "string (optional, for employees)"
+      }
+    },
+    "inventory": {
+      "description": "Inventory items and stock safety levels.",
+      "schema": {
+        "id": "string",
+        "name": "string",
+        "currentStock": "number",
+        "minSafety": "number"
+      }
+    },
+    "products": {
+      "description": "Product listings for the online storefront.",
+      "schema": {
+        "id": "string",
+        "name": "string",
+        "category": "string",
+        "subcategory": "string",
+        "price": "number",
+        "brand": "string",
+        "description": "string",
+        "inStock": "boolean",
+        "rating": "number",
+        "reviews": "number",
+        "image": "string (HTTPS URL)",
+        "images": "array of strings (HTTPS URLs)",
+        "specs": "map/object",
+        "stock": "number",
+        "minThreshold": "number"
+      }
+    },
+    "3cx_quotes": {
+      "description": "Lead-capture quote requests for 3CX VoIP Phone Systems.",
+      "schema": {
+        "referenceId": "string",
+        "companyName": "string",
+        "contactPerson": "string",
+        "email": "string",
+        "phone": "string",
+        "numberOfExtensions": "string",
+        "hardwareSetup": "string",
+        "numberPorting": "string",
+        "notes": "string",
+        "createdAt": "timestamp",
+        "status": "string"
+      }
+    }
+  }
+}
