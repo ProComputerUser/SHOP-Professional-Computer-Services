@@ -40,6 +40,7 @@ export function clearLocalCatalogCache(): void {
 /**
  * Fetches active inventory items from Zoho Inventory API via backend proxy endpoint.
  * When force=true, bypasses server and client cache and queries Zoho live.
+ * If backend endpoint is unavailable (e.g., on Vercel static deployment), automatically falls back to bundled static catalog.
  */
 export async function fetchZohoItems(force = false): Promise<ZohoItem[]> {
   try {
@@ -47,26 +48,42 @@ export async function fetchZohoItems(force = false): Promise<ZohoItem[]> {
       ? `/api/zoho/refresh?_t=${Date.now()}`
       : '/api/zoho/items';
     const res = await fetch(url);
-    if (!res.ok) {
+    if (res.ok) {
+      const text = await res.text();
+      try {
+        const data = JSON.parse(text);
+        const items = Array.isArray(data.items)
+          ? data.items
+          : (Array.isArray(data.rawItems)
+            ? data.rawItems
+            : (Array.isArray(data.products) ? data.products : (Array.isArray(data) ? data : [])));
+        if (items.length > 0) return items;
+      } catch (jsonErr) {
+        console.warn('[Zoho Non-JSON Response Ignored]:', text.slice(0, 50));
+      }
+    } else {
       console.warn(`[Zoho Fetch Status]: ${res.status}`);
-      return [];
-    }
-    const text = await res.text();
-    try {
-      const data = JSON.parse(text);
-      if (Array.isArray(data.items)) return data.items;
-      if (Array.isArray(data.rawItems)) return data.rawItems;
-      if (Array.isArray(data.products)) return data.products;
-      if (Array.isArray(data)) return data;
-      return [];
-    } catch (jsonErr) {
-      console.warn('[Zoho Non-JSON Response Ignored]:', text.slice(0, 50));
-      return [];
     }
   } catch (err) {
-    console.error('[Zoho Network Error]:', err);
-    return [];
+    console.warn('[Zoho Network Error, attempting static catalog fallback]:', err);
   }
+
+  // Seamless fallback for Vercel deployment and offline mode
+  try {
+    const staticRes = await fetch(`/zoho-catalog.json?v=${Date.now()}`);
+    if (staticRes.ok) {
+      const staticData = await staticRes.json();
+      const items = Array.isArray(staticData.items) ? staticData.items : (Array.isArray(staticData) ? staticData : []);
+      if (items.length > 0) {
+        console.log(`📦 [Catalog Service] Loaded ${items.length} items from bundled catalog.`);
+        return items;
+      }
+    }
+  } catch (staticErr) {
+    console.warn('[Catalog Service] Static catalog fallback error:', staticErr);
+  }
+
+  return [];
 }
 
 /**
@@ -115,7 +132,24 @@ export async function refreshZohoCatalog(): Promise<{ success: boolean; items: a
       return { success: false, items: [], count: 0 };
     }
   } catch (err: any) {
-    console.error('Error in refreshZohoCatalog:', err);
-    return { success: false, items: [], count: 0 };
+    console.warn('Live refresh endpoint unavailable, falling back to static catalog:', err.message);
   }
+
+  // Fallback to static catalog on Vercel
+  try {
+    const staticRes = await fetch(`/zoho-catalog.json?_t=${Date.now()}`);
+    if (staticRes.ok) {
+      const staticData = await staticRes.json();
+      const items = Array.isArray(staticData.items) ? staticData.items : (Array.isArray(staticData) ? staticData : []);
+      return {
+        success: true,
+        items,
+        count: items.length
+      };
+    }
+  } catch (staticErr) {
+    console.warn('Static catalog fallback error:', staticErr);
+  }
+
+  return { success: false, items: [], count: 0 };
 }

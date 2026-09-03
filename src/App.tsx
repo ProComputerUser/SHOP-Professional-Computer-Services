@@ -254,7 +254,7 @@ export default function App() {
     }
   };
 
-  // Manual Force Zoho Sync: triggers /api/zoho/refresh and pulls live prices
+  // Manual Force Zoho Sync: triggers /api/zoho/refresh and pulls live prices (with static catalog fallback for Vercel)
   const handleForceZohoSync = async () => {
     setIsSyncingZoho(true);
     console.log('🔄 [Force Zoho Sync] Initiating manual synchronization from Zoho Inventory...');
@@ -266,42 +266,90 @@ export default function App() {
 
       // 2. Fetch fresh live items
       const res = await fetch(`/api/zoho/items?force=true&_t=${Date.now()}`);
-      let data: any = {};
-      try {
-        const text = await res.text();
-        data = JSON.parse(text);
-      } catch (jsonErr) {
-        console.warn('[Zoho Force Sync Non-JSON]:', jsonErr);
-        data = { items: [] };
+      if (res.ok) {
+        let data: any = {};
+        try {
+          const text = await res.text();
+          data = JSON.parse(text);
+        } catch (jsonErr) {
+          console.warn('[Zoho Force Sync Non-JSON]:', jsonErr);
+        }
+        if (data && Array.isArray(data.items) && data.items.length > 0) {
+          console.log('📦 [Force Zoho Sync] Zoho inventory response received:', data);
+          processZohoResponse(data, false);
+          return;
+        }
       }
-      console.log('📦 [Force Zoho Sync] Zoho inventory response received:', data);
-      processZohoResponse(data, false);
     } catch (err: any) {
-      console.error('❌ [Force Zoho Sync Error]:', err);
-      setZohoStatus({ configured: false, message: err.message || 'Sync failed' });
-    } finally {
-      setIsSyncingZoho(false);
+      console.warn('Live Zoho refresh endpoint unavailable, reloading bundled catalog:', err.message);
     }
+
+    // Fallback reload from bundled static catalog (Vercel & offline support)
+    try {
+      const staticRes = await fetch(`/zoho-catalog.json?_t=${Date.now()}`);
+      if (staticRes.ok) {
+        const staticData = await staticRes.json();
+        if (staticData && Array.isArray(staticData.items) && staticData.items.length > 0) {
+          console.log('📦 [Static Catalog] Reloaded products from bundled catalog file.');
+          processZohoResponse(staticData, false);
+          setZohoStatus({
+            configured: true,
+            count: staticData.items.length,
+            message: `Catalog loaded! ${staticData.items.length} products active. (Static bundle)`
+          });
+          return;
+        }
+      }
+    } catch (staticErr: any) {
+      console.error('❌ [Catalog Reload Error]:', staticErr);
+    }
+
+    setZohoStatus({ configured: false, message: 'Sync unavailable. Check connection.' });
+    setIsSyncingZoho(false);
   };
 
-  // Initial Zoho sync to populate catalog
+  // Initial Zoho sync to populate catalog (supports Vercel serverless & static catalog fallback)
   useEffect(() => {
     async function loadInitialZohoData() {
       setIsSyncingZoho(true);
       try {
         const res = await fetch('/api/zoho/items');
-        if (!res.ok) {
-          throw new Error(`Server returned ${res.status}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.items) && data.items.length > 0) {
+            console.log('📦 Loaded items from /api/zoho/items:', data.items.length);
+            processZohoResponse(data, true);
+            setIsSyncingZoho(false);
+            return;
+          }
         }
-        const data = await res.json();
-        console.log('[DEBUG FULL ITEM SAMPLE]:', data.items?.slice(0, 5));
-        processZohoResponse(data, true);
       } catch (err: any) {
-        console.warn('Initial Zoho catalog notice:', err.message);
-        setZohoStatus({ configured: false, message: 'Ready for Zoho sync.' });
-      } finally {
-        setIsSyncingZoho(false);
+        console.warn('Initial live Zoho catalog notice:', err.message);
       }
+
+      // Seamless fallback for Vercel deployment: load bundled zoho-catalog.json
+      try {
+        const staticRes = await fetch(`/zoho-catalog.json?v=${Date.now()}`);
+        if (staticRes.ok) {
+          const staticData = await staticRes.json();
+          if (staticData && Array.isArray(staticData.items) && staticData.items.length > 0) {
+            console.log(`📦 [Vercel / Offline Fallback] Loaded ${staticData.items.length} items from bundled zoho-catalog.json`);
+            processZohoResponse(staticData, true);
+            setZohoStatus({
+              configured: true,
+              count: staticData.items.length,
+              message: `Catalog active with ${staticData.items.length} products.`
+            });
+            setIsSyncingZoho(false);
+            return;
+          }
+        }
+      } catch (staticErr: any) {
+        console.warn('Static catalog fallback notice:', staticErr.message);
+      }
+
+      setZohoStatus({ configured: false, message: 'Ready for Zoho sync.' });
+      setIsSyncingZoho(false);
     }
 
     loadInitialZohoData();
